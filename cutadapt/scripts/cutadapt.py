@@ -57,11 +57,14 @@ See http://cutadapt.readthedocs.org/ for full documentation.
 
 from __future__ import print_function, division, absolute_import
 
+import sys
+sys.path.append("/local/devel/carze/cutadapt/cutadapt")
+
 # Print a helpful error message if the extension modules cannot be imported.
 from cutadapt import check_importability
 check_importability()
 
-import sys
+
 import time
 import errno
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
@@ -217,6 +220,11 @@ def get_option_parser():
 			"but do not remove adapters.")
 	group.add_option("--mask-adapter", dest='action', action='store_const', const='mask',
 		help="Mask adapters with 'N' characters instead of trimming them.")
+	group.add_option("--trim-n-bases", type=int, default=-1,
+		help="When an adapter is found do not trim the whole adapter but "
+			"instead trim N-M bases from the start of our match where "
+			"N is the length of our match and M is the value supplied "
+			"by the user." )
 	parser.add_option_group(group)
 
 	group = OptionGroup(parser, "Additional read modifications")
@@ -582,6 +590,7 @@ def main(cmdlineargs=None, default_outfile=sys.stdout):
 		colorspace=options.colorspace,
 		max_error_rate=options.error_rate,
 		min_overlap=options.overlap,
+		partial_trim=options.trim_n_bases,
 		read_wildcards=options.match_read_wildcards,
 		adapter_wildcards=options.match_adapter_wildcards,
 		indels=options.indels)

@@ -268,6 +268,9 @@ class Adapter(object):
 
 	minimum_overlap -- Minimum length of the part of the alignment
 		that matches the adapter.
+    
+    partial_trim -- The number of bases to trim backwards from the end of our 
+        match. Allows us to trim off only a part of our adapter match.
 
 	read_wildcards -- Whether IUPAC wildcards in the read are allowed.
 
@@ -278,7 +281,8 @@ class Adapter(object):
 		unique number.
 	"""
 	def __init__(self, sequence, where, max_error_rate=0.1, min_overlap=3,
-			read_wildcards=False, adapter_wildcards=True, name=None, indels=True):
+			partial_trim=0, read_wildcards=False, adapter_wildcards=True, 
+			name=None, indels=True):
 		self.debug = False
 		self.name = _generate_adapter_name() if name is None else name
 		self.sequence = parse_braces(sequence.upper().replace('U', 'T'))
@@ -286,6 +290,7 @@ class Adapter(object):
 		self.where = where
 		self.max_error_rate = max_error_rate
 		self.min_overlap = min(min_overlap, len(self.sequence))
+		self.partial_trim = partial_trim
 		self.indels = indels
 		self.adapter_wildcards = adapter_wildcards and not set(self.sequence) <= set('ACGT')
 		self.read_wildcards = read_wildcards
@@ -321,6 +326,7 @@ class Adapter(object):
 	def __repr__(self):
 		return '<Adapter(name="{name}", sequence="{sequence}", where={where}, '\
 			'max_error_rate={max_error_rate}, min_overlap={min_overlap}, '\
+            'partial_trim={partial_trim}, '\
 			'read_wildcards={read_wildcards}, '\
 			'adapter_wildcards={adapter_wildcards}, '\
 			'indels={indels})>'.format(**vars(self))
@@ -352,9 +358,16 @@ class Adapter(object):
 			else:
 				pos = read_seq.find(self.sequence)
 		if pos >= 0:
-			match = Match(
-				0, len(self.sequence), pos, pos + len(self.sequence),
-				len(self.sequence), 0, self._front_flag, self, read)
+
+			if self.patrial_trim > 0:
+				match_end = len(self.sequence) - self.partial_trim
+				match = Match(
+					0, len(self.sequence), pos, match_end,
+					len(self.sequence), 0, self._front_flag, self, read)
+			else:
+				match = Match(
+					0, len(self.sequence), pos, pos + len(self.sequence),
+					len(self.sequence), 0, self._front_flag, self, read)
 		else:
 			# try approximate matching
 			if not self.indels and self.where in (PREFIX, SUFFIX):
@@ -365,8 +378,15 @@ class Adapter(object):
 					alignment = align.compare_suffixes(self.sequence, read_seq,
 						wildcard_ref=self.adapter_wildcards, wildcard_query=self.read_wildcards)
 				astart, astop, rstart, rstop, matches, errors = alignment
+
+				## HACK HERE! Trying to trim off only a partial part of the adapter
+				if self.partial_trim > 0:
+					rstop = rstop - self.partial_trim
+					#alignment = (astart, astop, rstart, rstop, matches, error)
+
 				if astop - astart >= self.min_overlap and errors / (astop - astart) <= self.max_error_rate:
-					match = Match(*(alignment + (self._front_flag, self, read)))
+					match = Match(astart, astop, rstart, rstop, matches, errors, self._front_flag, self, read)
+					#match = Match(*(alignment + (self._front_flag, self, read)))
 				else:
 					match = None
 			else:
@@ -377,6 +397,11 @@ class Adapter(object):
 					match = None
 				else:
 					astart, astop, rstart, rstop, matches, errors = alignment
+					
+					## HACK HERE! Trying to trim off only a partial part of the adapter
+					if self.partial_trim > 0:
+						rstop -= self.partrial_trim
+
 					match = Match(astart, astop, rstart, rstop, matches, errors, self._front_flag, self, read)
 
 		if match is None:
