@@ -359,7 +359,7 @@ class Adapter(object):
 				pos = read_seq.find(self.sequence)
 		if pos >= 0:
 
-			if self.patrial_trim > 0:
+			if self.partial_trim > 0:
 				match_end = len(self.sequence) - self.partial_trim
 				match = Match(
 					0, len(self.sequence), pos, match_end,
