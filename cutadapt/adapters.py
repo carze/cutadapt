@@ -400,7 +400,7 @@ class Adapter(object):
 					
 					## HACK HERE! Trying to trim off only a partial part of the adapter
 					if self.partial_trim > 0:
-						rstop -= self.partrial_trim
+						rstop -= self.partial_trim
 
 					match = Match(astart, astop, rstart, rstop, matches, errors, self._front_flag, self, read)
 
